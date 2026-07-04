@@ -7,7 +7,24 @@ import (
 	"time"
 )
 
-type ProxyHandler struct {}
+type ProxyHandler struct {
+	client *http.Client
+}
+
+func NewProxyHandler() *ProxyHandler {
+	// send the request using a custom HTTP client
+	transport := &http.Transport{
+		MaxIdleConns: 100,
+		IdleConnTimeout: 90 * time.Second,
+		TLSHandshakeTimeout: 10 * time.Second,
+	}
+
+	return &ProxyHandler{
+		client: &http.Client{
+			Transport: transport,
+		},
+	}
+}
 
 func (p *ProxyHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	// Validate the request URL
@@ -33,16 +50,7 @@ func (p *ProxyHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	// send the request using a custom HTTP client
-	transport := &http.Transport{
-		MaxIdleConns: 100,
-		IdleConnTimeout: 90 * time.Second,
-		TLSHandshakeTimeout: 10 * time.Second,
-	}
-
-	client := &http.Client{Transport: transport}
-
-	resp, err := client.Do(proxyReq)
+	resp, err := p.client.Do(proxyReq)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
