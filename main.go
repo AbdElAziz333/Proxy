@@ -3,6 +3,7 @@ package main
 import (
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -34,8 +35,8 @@ type ProxyHandler struct {
 func NewProxyHandler() *ProxyHandler {
 	// send the request using a custom HTTP client
 	transport := &http.Transport{
-		MaxIdleConns: 100,
-		IdleConnTimeout: 90 * time.Second,
+		MaxIdleConns:        100,
+		IdleConnTimeout:     90 * time.Second,
 		TLSHandshakeTimeout: 10 * time.Second,
 	}
 
@@ -47,6 +48,58 @@ func NewProxyHandler() *ProxyHandler {
 }
 
 func (p *ProxyHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	if req.Method == http.MethodConnect {
+		p.handleConnect(w, req)
+		return
+	}
+
+	p.handleHTTP(w, req)
+}
+
+func (p *ProxyHandler) handleConnect(w http.ResponseWriter, req *http.Request) {
+	log.Printf("CONNECT %s", req.Host)
+
+	destConn, err := net.DialTimeout("tcp", req.Host, 10*time.Second)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+
+	hijacker, ok := w.(http.Hijacker)
+	if !ok {
+		destConn.Close()
+		http.Error(w, "Hijacking not supported", http.StatusBadRequest)
+		return
+	}
+
+	clientConn, _, err := hijacker.Hijack()
+	if err != nil {
+		destConn.Close()
+		return
+	}
+
+	_, err = clientConn.Write([]byte(
+		"HTTP/1.1 200 Connection Established\r\n\r\n",
+	))
+
+	if err != nil {
+		clientConn.Close()
+		destConn.Close()
+		return
+	}
+
+	go transfer(destConn, clientConn)
+	go transfer(clientConn, destConn)
+}
+
+func transfer(dst io.WriteCloser, src io.ReadCloser) {
+	defer dst.Close()
+	defer src.Close()
+
+	io.Copy(dst, src)
+}
+
+func (p *ProxyHandler) handleHTTP(w http.ResponseWriter, req *http.Request) {
 	// Validate the request URL
 	if req.URL.Host == "" {
 		http.Error(w, "bad request: missing host", http.StatusBadRequest)
@@ -62,7 +115,7 @@ func (p *ProxyHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-			
+
 	// copy the headers from the original request to the proxy request
 	proxyReq.Header = req.Header.Clone()
 
@@ -99,7 +152,7 @@ func (p *ProxyHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 func main() {
 	handler := NewProxyHandler()
 	server := &http.Server{
-		Addr: ":8080",
+		Addr:    ":8080",
 		Handler: handler,
 	}
 
