@@ -4,8 +4,28 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 )
+
+func removeHopByHopHeaders(h http.Header) {
+	// because Connection header can declaree additional hop-by-hop headers
+	if c := h.Get("Connection"); c != "" {
+		for _, f := range strings.Split(c, ",") {
+			h.Del(strings.TrimSpace(f))
+		}
+	}
+
+	h.Del("Connection")
+	h.Del("Proxy-Connection")
+	h.Del("Keep-Alive")
+	h.Del("Proxy-Authenticate")
+	h.Del("Proxy-Authorization")
+	h.Del("TE")
+	h.Del("Trailer")
+	h.Del("Transfer-Encoding")
+	h.Del("Upgrade")
+}
 
 type ProxyHandler struct {
 	client *http.Client
@@ -39,16 +59,15 @@ func (p *ProxyHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	// we use req.Context() to pass through cancellation signals
 	proxyReq, err := http.NewRequestWithContext(req.Context(), req.Method, req.URL.String(), req.Body)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
+			
 	// copy the headers from the original request to the proxy request
-	for key, values := range req.Header	 {
-		for _, value := range values {
-			proxyReq.Header.Add(key, value)
-		}
-	}
+	proxyReq.Header = req.Header.Clone()
+
+	// remov hop-by-hop headers
+	removeHopByHopHeaders(proxyReq.Header)
 
 	resp, err := p.client.Do(proxyReq)
 	if err != nil {
@@ -57,6 +76,8 @@ func (p *ProxyHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 
 	defer resp.Body.Close()
+
+	removeHopByHopHeaders(resp.Header)
 
 	// copy the response headers back to the original client
 	for key, values := range resp.Header {
