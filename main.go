@@ -97,7 +97,7 @@ func (p *ProxyHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 }
 
 func main() {
-	handler := &ProxyHandler{}
+	handler := NewProxyHandler()
 	server := &http.Server{
 		Addr: ":8080",
 		Handler: handler,
