@@ -88,15 +88,28 @@ func (p *ProxyHandler) handleConnect(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	go transfer(destConn, clientConn)
-	go transfer(clientConn, destConn)
+	go tunnel(clientConn, destConn)
 }
 
-func transfer(dst io.WriteCloser, src io.ReadCloser) {
-	defer dst.Close()
-	defer src.Close()
+func tunnel(a, b net.Conn) {
+	done := make(chan struct{}, 2)
 
-	io.Copy(dst, src)
+	go func() {
+		io.Copy(a, b)
+		done <- struct{}{}
+	} ()
+
+	go func() {
+		io.Copy(b, a)
+		done <- struct{}{}
+	} ()
+
+	<-done
+
+	a.Close()
+	b.Close()
+
+	<-done
 }
 
 func (p *ProxyHandler) handleHTTP(w http.ResponseWriter, req *http.Request) {
