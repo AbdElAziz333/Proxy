@@ -32,12 +32,12 @@ type ProxyHandler struct {
 	client *http.Client
 }
 
-func NewProxyHandler() *ProxyHandler {
+func NewProxyHandler(c *Config) *ProxyHandler {
 	// send the request using a custom HTTP client
 	transport := &http.Transport{
 		MaxIdleConns:        100,
-		IdleConnTimeout:     90 * time.Second,
-		TLSHandshakeTimeout: 10 * time.Second,
+		IdleConnTimeout:     time.Duration(c.Server.IdleConnectionsTimeout) * time.Second,
+		TLSHandshakeTimeout: time.Duration(c.Server.TLSHandshakeTimeout) * time.Second,
 	}
 
 	return &ProxyHandler{

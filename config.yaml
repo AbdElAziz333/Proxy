@@ -1,0 +1,6 @@
+server:
+  port: 8081
+  read_timeout: 10 # in seconds
+  max_idle_connections: 100 # numbers of idle connections
+  idle_connections_timeout: 90 # in seconds
+  tls_handshake_timeout: 10 # in seconds
