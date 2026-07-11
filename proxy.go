@@ -92,23 +92,36 @@ func (p *ProxyHandler) handleConnect(w http.ResponseWriter, req *http.Request) {
 }
 
 func tunnel(a, b net.Conn) {
+	// Channel to signal when a one-way copy completes
 	done := make(chan struct{}, 2)
 
+	// pipe: a -> b (e.g., client to destination)
 	go func() {
-		io.Copy(a, b)
+		_, _ = io.Copy(a, b)
+		if tcpConn, ok := b.(*net.TCPConn); ok {
+			// a reached EOF, so half-close b's write stream
+			_ = tcpConn.CloseWrite()
+		}
+
 		done <- struct{}{}
 	} ()
 
+	// pipe: b -> a (e.g., destination to client)
 	go func() {
-		io.Copy(b, a)
+		_, _ = io.Copy(b, a)
+		if tcpConn, ok := b.(*net.TCPConn); ok {
+			// b reached EOF, so half-close a's write stream
+			_ = tcpConn.CloseWrite()
+		}
+
 		done <- struct{}{}
 	} ()
-
+	
+	// a.Close()
+	// b.Close()
+	
+	// Wait for both directions to complete fully before tearing down the sockets
 	<-done
-
-	a.Close()
-	b.Close()
-
 	<-done
 }
 
@@ -152,10 +165,16 @@ func (p *ProxyHandler) handleHTTP(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 
+	// Explicitly let Go manage connection longevity if requested
+	if req.Close {
+		w.Header().Set("Connection", "close")
+	}
+
 	// set the status code before writting the body
 	w.WriteHeader(resp.StatusCode)
 
 	// copy the response body to the original client
+	// Go automatically streams this. If size is unknown, Go applies chunked transfer-encoding.
 	_, err = io.Copy(w, resp.Body)
 	if err != nil {
 		log.Printf("Error copying response body: %v", err)

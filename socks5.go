@@ -128,6 +128,4 @@ func HandleSOCKS5(clientConn net.Conn) {
 
 	// data transfer (reusing the tunnel logic)
 	tunnel(clientConn, destConn)
-
-
 }
