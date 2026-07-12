@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"net"
+	// "net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -20,7 +20,7 @@ func bootstrapConfig(filename string) *Config {
 
 	return &Config{
 		Server: cfg.Server,
-		SOCKS5Config: cfg.SOCKS5Config,
+		// SOCKS5Config: cfg.SOCKS5Config,
 	}
 }
 
@@ -48,29 +48,29 @@ func main() {
 	}()
 
 	// start the SOCKS5 Proxy in the background (Only if enabled in YAML)
-	if cfg.SOCKS5Config.Enabled {
-		socksAddr := fmt.Sprintf(":%d", cfg.SOCKS5Config.Port)
-		socksListener, err := net.Listen("tcp", socksAddr)
-		if err != nil {
-			log.Fatalf("Failed to start the SOCKS5 listener: %v", err)
-		}
+	// if cfg.SOCKS5Config.Enabled {
+	// 	socksAddr := fmt.Sprintf(":%d", cfg.SOCKS5Config.Port)
+	// 	socksListener, err := net.Listen("tcp", socksAddr)
+	// 	if err != nil {
+	// 		log.Fatalf("Failed to start the SOCKS5 listener: %v", err)
+	// 	}
 
-		log.Printf("Starting SOCKS5 proxy on %d\n", cfg.SOCKS5Config.Port)
+	// 	log.Printf("Starting SOCKS5 proxy on %d\n", cfg.SOCKS5Config.Port)
 
-		go func() {
-			defer socksListener.Close()
+	// 	go func() {
+	// 		defer socksListener.Close()
 
-			for {
-				conn, err := socksListener.Accept()
-				if err != nil {
-					log.Printf("SOCKS5 Accept error: %v", err)
-					continue
-				}
+	// 		for {
+	// 			conn, err := socksListener.Accept()
+	// 			if err != nil {
+	// 				log.Printf("SOCKS5 Accept error: %v", err)
+	// 				continue
+	// 			}
 
-				go HandleSOCKS5(conn)
-			}
-		} ()
-	}
+	// 			go HandleSOCKS5(conn)
+	// 		}
+	// 	} ()
+	// }
 
 	shutdownSig := make(chan os.Signal, 1)
 

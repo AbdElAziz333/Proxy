@@ -8,14 +8,14 @@ import (
 
 type Config struct {
 	Server ServerConfig `yaml:"server"`
-	SOCKS5Config SOCKS5Config `yaml:"socks5"`
+	// SOCKS5Config SOCKS5Config `yaml:"socks5"`
 }
 
 
-type SOCKS5Config struct {
-	Enabled bool `yaml:"enabled"`
-	Port int `yaml:"port"`
-}
+// type SOCKS5Config struct {
+// 	Enabled bool `yaml:"enabled"`
+// 	Port int `yaml:"port"`
+// }
 type ServerConfig struct {
 	Port int `yaml:"port"`
 	ReadTimeout int `yaml:"read_timeout"`
