@@ -4,6 +4,12 @@ server:
   max_idle_connections: 100 # numbers of idle connections
   idle_connections_timeout: 90 # in seconds
   tls_handshake_timeout: 10 # in seconds
+  rate_limiter:
+    requests_per_second: 10 #
+    burst_capacity: 15
+  bandwidth_limiter:
+    speed_limit_mb: 1
+    burst_capacity_mb: 2
 
 socks5:
   enabled: true
