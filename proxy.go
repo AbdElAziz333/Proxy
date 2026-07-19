@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"io"
 	"log"
 	"net"
 	"net/http"
+	// "net/url"
 	"strings"
 	"time"
 
@@ -56,6 +58,11 @@ type ProxyHandler struct {
 	client *http.Client
 	reqLimiter *rate.Limiter
 	bandwidthLimiter *rate.Limiter
+	// simple hardcoded values for demo
+
+	authenticationEnabled bool
+	username string
+	password string
 }
 
 func NewProxyHandler(c *Config) *ProxyHandler {
@@ -86,10 +93,45 @@ func NewProxyHandler(c *Config) *ProxyHandler {
 		},
 		reqLimiter: reqLimiter,
 		bandwidthLimiter: bandwidthLimiter,
+		authenticationEnabled: c.Server.Authentication.Enabled,
+		username: c.Server.Authentication.Username,
+		password: c.Server.Authentication.Password,
 	}
 }
 
+func (p *ProxyHandler) authenticate(req *http.Request) bool {
+	authHeader := req.Header.Get("Proxy-Authorization")
+	if authHeader == "" {
+		return false
+	}
+
+	parts := strings.SplitN(authHeader, " ", 2)
+	if len(parts) != 2 || !strings.EqualFold(parts[0], "Basic") {
+		return false
+	}
+
+	payload, err := base64.StdEncoding.DecodeString(parts[1])
+	if err != nil {
+		return false
+	}
+
+	pair := strings.SplitN(string(payload), ":", 2)
+	if len(pair) != 2 {
+		return false
+	}
+
+	return pair[0] == p.username && pair[1] == p.password
+}
+
 func (p *ProxyHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	if p.authenticationEnabled {
+		if !p.authenticate(req) {
+			w.Header().Set("Proxy-Authenticate", `Basic realm="My Go Proxy"`)
+			http.Error(w, "Proxy authentication required", http.StatusProxyAuthRequired)
+			return
+		}
+	}
+
 	// request rate limiting guard
 	if !p.reqLimiter.Allow() {
 		w.Header().Add("Retry-After", "1")

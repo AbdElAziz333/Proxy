@@ -24,6 +24,7 @@ type ServerConfig struct {
 	MaxIdleConns int `yaml:"max_idle_connections"`
 	RateLimiter RateLimiterConfig `yaml:"rate_limiter"`
 	BandwidthLimiter BandwidthLimiterConfig `yaml:"bandwidth_limiter"`
+	Authentication AuthenticationConfig `yaml:"authentication"`
 }
 
 type RateLimiterConfig struct {
@@ -34,6 +35,12 @@ type RateLimiterConfig struct {
 type BandwidthLimiterConfig struct {
 	SpeedLimitMB int `yaml:"speed_limit_mb"`
 	BurstCapacityMB int `yaml:"burst_capacity_mb"`
+}
+
+type AuthenticationConfig struct {
+	Enabled bool `yaml:"enabled"`
+	Username string `yaml:"username"`
+	Password string `yaml:"password"`
 }
 
 func LoadConfig(filename string) (*Config, error) {

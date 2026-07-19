@@ -10,6 +10,10 @@ server:
   bandwidth_limiter:
     speed_limit_mb: 1
     burst_capacity_mb: 2
+  authentication:
+    enabled: false
+    username: "admin"
+    password: "supersecretpassword"
 
 socks5:
   enabled: true
